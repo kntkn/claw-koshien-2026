@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MC Dashboard - Claw Koshien 2026</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1e28; color: #e8eaf0;
+      font-family: 'SF Pro Text', system-ui, sans-serif;
+      padding: 20px;
+    }
+    h1 { font-size: 16px; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 20px; color: #5cf89a; }
+    .participants { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+    .participant {
+      background: #2a3040; border-radius: 8px; padding: 12px; cursor: pointer;
+      border: 1px solid #3a4858; transition: all 0.2s;
+    }
+    .participant:hover { border-color: #5cf89a; background: #2a3848; }
+    .participant .name { font-weight: 700; font-size: 14px; }
+    .participant .status { font-size: 12px; color: #8a9aaa; margin-top: 4px; }
+    .participant .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .dot.thinking { background: #f0c040; box-shadow: 0 0 6px rgba(240,192,64,.5); }
+    .dot.working { background: #5cf89a; box-shadow: 0 0 6px rgba(92,248,154,.5); }
+    .dot.idle { background: #607088; }
+    .controls {
+      margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    button {
+      background: #2a3040; border: 1px solid #3a4858; color: #e8eaf0;
+      padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;
+    }
+    button:hover { border-color: #5cf89a; }
+    kbd { background: #3a4858; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 6px; }
+    #timer {
+      font-family: 'SF Mono', monospace; font-size: 48px; color: #5cf89a;
+      text-shadow: 0 0 20px rgba(92,248,154,.3); margin: 20px 0; font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body>
+  <h1>MC Dashboard</h1>
+  <div id="timer">00:00:00</div>
+  <div class="controls">
+    <button onclick="sendCommand('camera:overview')">Overview <kbd>1</kbd></button>
+    <button onclick="sendCommand('camera:tour')">Auto Tour <kbd>2</kbd></button>
+    <button onclick="sendCommand('timer:start')">Start Timer <kbd>Space</kbd></button>
+    <button onclick="sendCommand('timer:reset')">Reset Timer <kbd>R</kbd></button>
+    <button onclick="sendCommand('banner:show')">Show Banner <kbd>B</kbd></button>
+    <button onclick="sendCommand('banner:hide')">Hide Banner <kbd>H</kbd></button>
+  </div>
+  <h2 style="margin-top:20px;font-size:14px;color:#8a9aaa">Participants</h2>
+  <div class="participants" id="participants"></div>
+  <script>
+    const ws = new WebSocket(`ws://${location.hostname}:9001`);
+    const state = {};
+
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'state') {
+        Object.assign(state, { [msg.id]: msg });
+        renderParticipants();
+      }
+    };
+
+    function renderParticipants() {
+      const el = document.getElementById('participants');
+      el.innerHTML = Object.values(state).map(p => `
+        <div class="participant" onclick="focusOn('${p.id}')">
+          <div class="name"><span class="dot ${p.status || 'idle'}"></span>${p.name || p.id}</div>
+          <div class="status">${p.tool || ''} ${p.summary || ''}</div>
+        </div>
+      `).join('');
+    }
+
+    function focusOn(id) { sendCommand(`camera:focus:${id}`); }
+    function sendCommand(cmd) { ws.send(JSON.stringify({ type: 'mc-command', command: cmd })); }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '1') sendCommand('camera:overview');
+      if (e.key === '2') sendCommand('camera:tour');
+      if (e.key === ' ') { e.preventDefault(); sendCommand('timer:toggle'); }
+      if (e.key === 'r') sendCommand('timer:reset');
+      if (e.key === 'b') sendCommand('banner:show');
+      if (e.key === 'h') sendCommand('banner:hide');
+    });
+
+    // Timer
+    let timerStart = null;
+    let timerRunning = false;
+    function updateTimer() {
+      if (timerRunning && timerStart) {
+        const elapsed = Date.now() - timerStart;
+        const h = Math.floor(elapsed / 3600000);
+        const m = Math.floor((elapsed % 3600000) / 60000);
+        const s = Math.floor((elapsed % 60000) / 1000);
+        document.getElementById('timer').textContent =
+          `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+      }
+      requestAnimationFrame(updateTimer);
+    }
+    updateTimer();
+  </script>
+</body>
+</html>
