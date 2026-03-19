@@ -6,10 +6,11 @@ export class MetadataClient {
   private url: string;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private commandListeners: Array<(command: string) => void> = [];
+  private competitionListeners: Array<(event: any) => void> = [];
 
   constructor(stateManager: StateManager, url?: string) {
     this.stateManager = stateManager;
-    this.url = url ?? `ws://${location.hostname}:9001`;
+    this.url = url ?? (import.meta.env.VITE_RELAY_WS || `ws://${location.hostname}:9001`);
   }
 
   connect() {
@@ -62,11 +63,20 @@ export class MetadataClient {
       for (const listener of this.commandListeners) {
         listener(command);
       }
+    } else if (['progress', 'score', 'task', 'timer', 'commentary', 'vote'].includes(msg.type as string)) {
+      // Competition events — delegate to listeners
+      for (const listener of this.competitionListeners) {
+        listener(msg as any);
+      }
     }
   }
 
   onCommand(listener: (command: string) => void) {
     this.commandListeners.push(listener);
+  }
+
+  onCompetitionEvent(listener: (event: any) => void) {
+    this.competitionListeners.push(listener);
   }
 
   disconnect() {

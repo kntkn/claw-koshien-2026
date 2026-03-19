@@ -11,6 +11,7 @@ export class Dashboard {
   private timerStart: number | null = null;
   private timerRunning = false;
   private timerRAF: number | null = null;
+  private competitionMode = false;
 
   constructor(
     stateManager: StateManager,
@@ -212,6 +213,43 @@ export class Dashboard {
         overflow: hidden;
         text-overflow: ellipsis;
       }
+      .card-competition-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 6px;
+      }
+      .card-score {
+        font-family: 'SF Mono', monospace;
+        font-size: 22px;
+        font-weight: 800;
+        color: #5cf89a;
+      }
+      .card-votes {
+        font-size: 11px;
+        color: #f0c040;
+      }
+      .card-progress-bar {
+        height: 4px;
+        background: #1e2230;
+        border-radius: 2px;
+        margin-bottom: 6px;
+        overflow: hidden;
+      }
+      .card-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #5cf89a, #40d8f0);
+        border-radius: 2px;
+        transition: width 0.3s ease;
+      }
+      .card-rank {
+        font-size: 14px;
+        font-weight: 800;
+        margin-right: 8px;
+      }
+      .agent-card.rank-1 { border-left: 3px solid #ffd700; }
+      .agent-card.rank-2 { border-left: 3px solid #c0c0c0; }
+      .agent-card.rank-3 { border-left: 3px solid #cd7f32; }
     `;
     document.head.appendChild(style);
   }
@@ -253,12 +291,18 @@ export class Dashboard {
     const participants = this.stateManager.getAllParticipants();
     const focusedId = this.cameraController.getFocusedDeskId();
 
-    cards.innerHTML = participants.map(p => {
+    let sorted = participants;
+    if (this.competitionMode) {
+      sorted = [...participants].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+      sorted.forEach((p, i) => { p.rank = i + 1; });
+    }
+
+    cards.innerHTML = sorted.map(p => {
       // Detect external services from recent tools
       const services = detectServices(p.recentTools.map(t => t.name));
 
       return `
-      <div class="agent-card ${p.id === focusedId ? 'focused' : ''}" data-id="${p.id}">
+      <div class="agent-card ${p.id === focusedId ? 'focused' : ''} ${this.competitionMode && (p.rank ?? 0) <= 3 ? `rank-${p.rank}` : ''}" data-id="${p.id}">
         <div class="card-top">
           <div class="card-name">
             <span class="status-dot ${p.status}"></span>
@@ -266,6 +310,19 @@ export class Dashboard {
           </div>
           <span class="card-status ${p.status}">${formatStatusJa(p.status)}</span>
         </div>
+        ${this.competitionMode ? `
+          <div class="card-competition-row">
+            <div>
+              <span class="card-rank">${getRankEmoji(p.rank ?? 0)}</span>
+              <span class="card-score">${p.score ?? 0}</span>
+              <span style="font-size:11px;color:#607088">pts</span>
+            </div>
+            <span class="card-votes">${p.votes ?? 0} votes</span>
+          </div>
+          <div class="card-progress-bar">
+            <div class="card-progress-fill" style="width:${p.progress ?? 0}%"></div>
+          </div>
+        ` : ''}
         ${p.tool ? `<div class="card-tool">
           <span class="tool-name">${formatToolJa(p.tool)}</span>
         </div>` : ''}
@@ -383,6 +440,11 @@ export class Dashboard {
     tick();
   }
 
+  setCompetitionMode(enabled: boolean) {
+    this.competitionMode = enabled;
+    this.renderCards();
+  }
+
   handleCommand(command: string) {
     if (command === 'camera:overview') {
       this.autoTour.stop();
@@ -432,4 +494,11 @@ function detectServices(toolNames: string[]): string[] {
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function getRankEmoji(rank: number): string {
+  if (rank === 1) return '#1';
+  if (rank === 2) return '#2';
+  if (rank === 3) return '#3';
+  return `#${rank}`;
 }

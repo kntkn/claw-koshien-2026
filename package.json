@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "relay": "bun run relay/server.ts",
-    "session-api": "bun run relay/session-api.ts"
+    "session-api": "bun run relay/session-api.ts",
+    "live-dashboard": "bun run broadcast/live-dashboard.ts"
   },
   "dependencies": {
     "three": "^0.170.0",

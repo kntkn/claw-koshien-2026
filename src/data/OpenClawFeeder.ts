@@ -21,7 +21,7 @@ export class OpenClawFeeder {
   private interval: ReturnType<typeof setInterval> | null = null;
   private apiBase: string;
 
-  constructor(stateManager: StateManager, apiBase = `http://${location.hostname}:9002`) {
+  constructor(stateManager: StateManager, apiBase = import.meta.env.VITE_SESSION_API || `http://${location.hostname}:9002`) {
     this.stateManager = stateManager;
     this.apiBase = apiBase;
 

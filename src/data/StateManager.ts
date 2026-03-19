@@ -14,6 +14,10 @@ export interface ParticipantState {
   lastTask: string;
   recentTools: ToolEntry[];
   streamId?: string;
+  score?: number;
+  progress?: number;
+  votes?: number;
+  rank?: number;
   updatedAt: number;
 }
 

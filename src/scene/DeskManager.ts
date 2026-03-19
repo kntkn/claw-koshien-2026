@@ -13,8 +13,10 @@ export class DeskManager {
   readonly group = new THREE.Group();
   readonly desks: Map<string, Desk> = new Map();
   private deskOrder: string[] = [];
+  private config: DeskManagerConfig;
 
   constructor(config: DeskManagerConfig) {
+    this.config = config;
     this.group.name = 'desk-manager';
     this.layoutDesks(config);
   }
@@ -62,6 +64,29 @@ export class DeskManager {
 
   getDeskCount(): number {
     return this.deskOrder.length;
+  }
+
+  /** Dynamically add a new desk at runtime */
+  addDesk(id: string, name: string): Desk {
+    const count = this.deskOrder.length;
+    const columns = this.config.columns;
+    const col = count % columns;
+    const row = Math.floor(count / columns);
+    const totalWidth = (columns - 1) * this.config.spacingX;
+    const x = col * this.config.spacingX - totalWidth / 2;
+    const z = row * this.config.spacingZ;
+
+    const deskConfig: DeskConfig = {
+      id,
+      name,
+      position: new THREE.Vector3(x, 0, z),
+    };
+
+    const desk = new Desk(deskConfig);
+    this.desks.set(id, desk);
+    this.deskOrder.push(id);
+    this.group.add(desk.group);
+    return desk;
   }
 
   /** Update desk from participant state */

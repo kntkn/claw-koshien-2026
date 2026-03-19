@@ -53,7 +53,8 @@
   <h2 style="margin-top:20px;font-size:14px;color:#8a9aaa">Participants</h2>
   <div class="participants" id="participants"></div>
   <script>
-    const ws = new WebSocket(`ws://${location.hostname}:9001`);
+    const relay = new URLSearchParams(location.search).get('relay') || `ws://${location.hostname}:9001`;
+    const ws = new WebSocket(relay);
     const state = {};
 
     ws.onmessage = (e) => {

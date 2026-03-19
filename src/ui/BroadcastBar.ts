@@ -120,6 +120,13 @@ export class BroadcastBar {
         .bb-agent-pip.working { background: #5cf89a; box-shadow: 0 0 4px rgba(92,248,154,0.6); }
         .bb-agent-pip.thinking { background: #f0c040; }
         .bb-agent-pip.idle { background: #404858; }
+        .bb-item.commentary {
+          color: #f0c040;
+          font-weight: 600;
+        }
+        .bb-item.commentary .agent-name {
+          color: #f0c040;
+        }
       </style>
       <div class="bb-live">
         <span class="bb-live-dot"></span>
@@ -169,7 +176,7 @@ export class BroadcastBar {
     ];
 
     const html = [...items, ...items].map(item =>
-      `<span class="bb-item">
+      `<span class="bb-item${item.agent.startsWith('🎙️') ? ' commentary' : ''}">
         <span class="agent-name">${item.agent}</span>
         <span>${item.text}</span>
         <span class="separator">\u25C6</span>
@@ -201,6 +208,18 @@ export class BroadcastBar {
       this.raf = requestAnimationFrame(tick);
     };
     tick();
+  }
+
+  handleCommentary(text: string) {
+    this.tickerItems.push({
+      agent: '🎙️ Commentary',
+      text,
+      timestamp: Date.now(),
+    });
+    if (this.tickerItems.length > 20) {
+      this.tickerItems = this.tickerItems.slice(-20);
+    }
+    this.renderTicker();
   }
 
   dispose() {

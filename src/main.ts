@@ -15,15 +15,17 @@ import { EventBanner } from './ui/EventBanner';
 import { BroadcastBar } from './ui/BroadcastBar';
 import { PostProcessing } from './scene/PostProcessing';
 import { HologramAgent } from './scene/HologramAgent';
+import { CompetitionFeeder } from './data/CompetitionFeeder';
 
 // --- Configuration ---
 const params = new URLSearchParams(location.search);
 const USE_MOCK = params.has('mock');
-const USE_OPENCLAW = params.has('openclaw') || (!USE_MOCK && !params.has('relay'));
+const USE_COMPETITION = params.has('competition');
+const USE_OPENCLAW = params.has('openclaw') || (!USE_MOCK && !USE_COMPETITION && !params.has('relay'));
 
 const OPENCLAW_AGENTS = ['CEO', 'CTO', 'COO', 'CMO', 'CFO'];
-const DESK_COUNT = USE_OPENCLAW ? OPENCLAW_AGENTS.length : 8;
-const DESK_COLUMNS = USE_OPENCLAW ? DESK_COUNT : 4;
+const DESK_COUNT = USE_COMPETITION ? 0 : (USE_OPENCLAW ? OPENCLAW_AGENTS.length : 8);
+const DESK_COLUMNS = USE_COMPETITION ? 4 : (USE_OPENCLAW ? DESK_COUNT : 4);
 const DESK_NAMES = USE_OPENCLAW ? OPENCLAW_AGENTS : undefined;
 
 // --- Viewport ---
@@ -127,6 +129,31 @@ metadataClient.onCommand((cmd) => {
   eventBanner.handleCommand(cmd);
 });
 
+// --- Competition Feeder ---
+const competitionFeeder = USE_COMPETITION ? new CompetitionFeeder(stateManager) : null;
+
+if (competitionFeeder) {
+  // Wire to MetadataClient
+  metadataClient.onCompetitionEvent((event) => {
+    competitionFeeder.handleEvent(event);
+    // Route commentary events to BroadcastBar ticker
+    if (event.type === 'commentary' && event.commentary) {
+      broadcastBar.handleCommentary(event.commentary);
+    }
+  });
+
+  // Dynamic desk creation when new teams appear
+  competitionFeeder.onNewTeam((teamId, teamName) => {
+    const deskId = `desk-${teamId}`;
+    const desk = deskManager.addDesk(deskId, teamName);
+    const hologram = new HologramAgent(desk, teamName);
+    holograms.push(hologram);
+    console.log(`[competition] New team registered: ${teamName} (${deskId})`);
+  });
+
+  dashboard.setCompetitionMode(true);
+}
+
 // --- Data sources ---
 const mockGen = new MockDataGenerator(stateManager, 8);
 const openclawFeeder = new OpenClawFeeder(stateManager);
@@ -137,7 +164,11 @@ function init() {
 
   metadataClient.connect();
 
-  if (USE_MOCK) {
+  if (USE_COMPETITION) {
+    const relayHttp = import.meta.env.VITE_RELAY_HTTP || `http://${location.hostname}:9001`;
+    competitionFeeder!.loadInitialState(relayHttp);
+    console.log('[main] Competition mode enabled');
+  } else if (USE_MOCK) {
     mockGen.start(2000);
     console.log('[main] Mock data mode enabled');
   } else if (USE_OPENCLAW) {
